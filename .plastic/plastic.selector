@@ -1,0 +1,4 @@
+repository "serial-flight-sim@avhajr@cloud"
+  path "/"
+    br "/main"
+    co "/main"
