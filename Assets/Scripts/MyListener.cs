@@ -5,7 +5,7 @@ using UnityEngine;
 using TMPro;
  
 
-public class PlaneController : MonoBehaviour
+public class MyListener : MonoBehaviour
 {
     public float throttleIncrement = 0.1f;
     public float maxThrust = 200f;
@@ -48,6 +48,20 @@ public class PlaneController : MonoBehaviour
         }
 
         throttle = Mathf.Clamp(throttle, 0f, 100f);
+    }
+    
+    void OnMessageArrived(string msg)
+    {
+        /*
+         * Function is called each time Unity receives a message from Arduino.
+         * msg: the message received.
+         */
+        Debug.Log(msg);
+    }
+
+    void OnConnectionEvent(bool success)
+    {
+        Debug.Log(success ? "Device connected!" : "Device DISCONNECTED.");
     }
 
     // Update is called once per frame
