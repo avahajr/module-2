@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
- 
+
 
 public class MyListener : MonoBehaviour
 {
@@ -20,6 +20,7 @@ public class MyListener : MonoBehaviour
     private Rigidbody rb;
     [SerializeField] private TextMeshProUGUI hud;
     [SerializeField] private Transform propeller;
+
     private float responseModifier
     {
         get { return (rb.mass / 10f) * responsiveness; }
@@ -49,14 +50,32 @@ public class MyListener : MonoBehaviour
 
         throttle = Mathf.Clamp(throttle, 0f, 100f);
     }
-    
+
     void OnMessageArrived(string msg)
     {
         /*
          * Function is called each time Unity receives a message from Arduino.
          * msg: the message received.
          */
-        Debug.Log(msg);
+
+        string[] slicedMessage = msg.Split(' ');
+        int[] serialIntegers = new int[slicedMessage.Length];
+
+        for (int i = 0; i < slicedMessage.Length; i++)
+        {
+            serialIntegers[i] = int.Parse(slicedMessage[i]);
+        }
+
+        Debug.Log("X: " + serialIntegers[0] + " " + "Y: " + serialIntegers[1] + " " + "Z: " + serialIntegers[2] + " " +
+                  "Potentiometer: " + serialIntegers[3]);
+
+        yaw = serialIntegers[3] / (4095f/2f) - 1;
+        pitch = serialIntegers[1] / (4095f/2f) - 1;
+        roll = serialIntegers[0] / (4095f/2f) - 1;
+
+        // Debug.Log("yaw: " + yaw);
+        
+        
     }
 
     void OnConnectionEvent(bool success)
@@ -67,7 +86,9 @@ public class MyListener : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        HandleInputs();
+        // for a keyboard flight sim, uncomment the following line:
+        // HandleInputs();
+
         UpdateHUD();
         if (throttle > 0)
         {
@@ -81,7 +102,7 @@ public class MyListener : MonoBehaviour
         rb.AddTorque(transform.up * (yaw * responseModifier));
         rb.AddTorque(transform.right * (roll * responseModifier));
         rb.AddTorque(-transform.forward * (pitch * responseModifier));
-        
+
         rb.AddForce(Vector3.up * (rb.velocity.magnitude * lift));
     }
 
@@ -90,6 +111,5 @@ public class MyListener : MonoBehaviour
         hud.text = "Throttle: " + throttle.ToString("F0") + "%\n";
         hud.text += "Airspeed: " + (rb.velocity.magnitude * 3.6f).ToString("F0") + "km/h\n";
         hud.text += "Altitude: " + transform.position.y.ToString("F0") + " m";
-        
     }
 }
