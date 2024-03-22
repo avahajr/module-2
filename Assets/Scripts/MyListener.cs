@@ -36,6 +36,10 @@ public class MyListener : MonoBehaviour
         get { return (_rb.mass / 10f) * responsiveness; }
     }
 
+    public float GetThrottle()
+    {
+        return _throttle;
+    }
     // Start is called before the first frame update
     private void Awake()
     {
@@ -101,7 +105,7 @@ public class MyListener : MonoBehaviour
                 if (Math.Abs(_yaw) < yawDeadzone)
                     _yaw = 0f;
 
-                Debug.Log($"yaw: {_yaw}, pitch: {_pitch}, roll: {_roll}");
+                // Debug.Log($"yaw: {_yaw}, pitch: {_pitch}, roll: {_roll}");
             }
         }
     }
