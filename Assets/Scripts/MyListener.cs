@@ -12,43 +12,54 @@ public class MyListener : MonoBehaviour
     public float responsiveness = 10f;
     public float lift = 135f;
 
-    private float throttle;
-    private float roll;
-    private float pitch;
-    private float yaw;
+    private float _throttle;
+    private float _roll;
+    private float _pitch;
+    private float _yaw;
 
-    private Rigidbody rb;
+
+    [SerializeField] private float _pitchCorrection = 0;
+    [SerializeField] private float _rollCorrection = 0;
+    private int _calibrationFrame = 0;
+    [SerializeField] private int framesNeeded = 10;
+
+    [SerializeField] private bool useSerial = true;
+    [SerializeField] private float joystickDeadzone = 0.05f;
+    [SerializeField] private float yawDeadzone = 0.07f;
+    private Rigidbody _rb;
     [SerializeField] private TextMeshProUGUI hud;
     [SerializeField] private Transform propeller;
 
-    private float responseModifier
+    private float ResponseModifier
     {
-        get { return (rb.mass / 10f) * responsiveness; }
+        get { return (_rb.mass / 10f) * responsiveness; }
     }
 
     // Start is called before the first frame update
     private void Awake()
     {
-        rb = GetComponent<Rigidbody>();
+        _rb = GetComponent<Rigidbody>();
     }
 
     private void HandleInputs()
     {
         // TODO: change later!
-        roll = Input.GetAxis("Roll");
-        pitch = Input.GetAxis("Pitch");
-        yaw = Input.GetAxis("Yaw");
-
+        if (!useSerial)
+        {
+            _roll = Input.GetAxis("Roll");
+            _pitch = Input.GetAxis("Pitch");
+            _yaw = Input.GetAxis("Yaw");
+        }
         if (Input.GetKey(KeyCode.Space))
         {
-            throttle += throttleIncrement;
+            _throttle += throttleIncrement;
         }
         else
         {
-            throttle -= throttleIncrement;
+            _throttle -= throttleIncrement;
         }
 
-        throttle = Mathf.Clamp(throttle, 0f, 100f);
+        _throttle = Mathf.Clamp(_throttle, 0f, 100f);
     }
 
     void OnMessageArrived(string msg)
@@ -57,59 +68,94 @@ public class MyListener : MonoBehaviour
          * Function is called each time Unity receives a message from Arduino.
          * msg: the message received.
          */
-
-        string[] slicedMessage = msg.Split(' ');
-        int[] serialIntegers = new int[slicedMessage.Length];
-
-        for (int i = 0; i < slicedMessage.Length; i++)
+        if (useSerial)
         {
-            serialIntegers[i] = int.Parse(slicedMessage[i]);
+            var slicedMessage = msg.Split(' ');
+            var serialIntegers = new int[slicedMessage.Length];
+
+            for (int i = 0; i < slicedMessage.Length; i++)
+            {
+                serialIntegers[i] = int.Parse(slicedMessage[i]);
+            }
+
+            // Debug.Log("X: " + serialIntegers[0] + " " + "Y: " + serialIntegers[1] + " " + "Z: " + serialIntegers[2] +
+            //           " " +
+            //           "Potentiometer: " + serialIntegers[3]);
+            if (_calibrationFrame < framesNeeded)
+            {
+                _pitchCorrection += (serialIntegers[1] / (4095f / 2f) - 1) * 1f / framesNeeded;
+                _rollCorrection += (serialIntegers[0] / (4095f / 2f) - 1) * 1f / framesNeeded;
+
+                _calibrationFrame++;
+            }
+            else
+            {
+                _yaw = serialIntegers[3] / (4095f / 2f) - 1;
+                _pitch = serialIntegers[1] / (4095f / 2f) - 1 - _pitchCorrection;
+                _roll = serialIntegers[0] / (4095f / 2f) - 1 - _rollCorrection;
+
+                // ignore extremely small values -- they are most likely unintentional
+                if (Math.Abs(_pitch) < joystickDeadzone)
+                    _pitch = 0f;
+                if (Math.Abs(_roll) < joystickDeadzone)
+                    _roll = 0f;
+                if (Math.Abs(_yaw) < yawDeadzone)
+                    _yaw = 0f;
+
+                Debug.Log($"yaw: {_yaw}, pitch: {_pitch}, roll: {_roll}");
+            }
         }
-
-        Debug.Log("X: " + serialIntegers[0] + " " + "Y: " + serialIntegers[1] + " " + "Z: " + serialIntegers[2] + " " +
-                  "Potentiometer: " + serialIntegers[3]);
-
-        yaw = serialIntegers[3] / (4095f/2f) - 1;
-        pitch = serialIntegers[1] / (4095f/2f) - 1;
-        roll = serialIntegers[0] / (4095f/2f) - 1;
-
-        // Debug.Log("yaw: " + yaw);
-        
-        
     }
 
     void OnConnectionEvent(bool success)
-    {
-        Debug.Log(success ? "Device connected!" : "Device DISCONNECTED.");
+    { 
+        if (useSerial)
+            Debug.Log(success ? "Device connected!" : "Device DISCONNECTED.");
     }
 
     // Update is called once per frame
     void Update()
     {
-        // for a keyboard flight sim, uncomment the following line:
-        // HandleInputs();
-
-        UpdateHUD();
-        if (throttle > 0)
+        if (_calibrationFrame >= framesNeeded || !useSerial)
         {
-            propeller.Rotate(Vector3.right * throttle);
+            // for a keyboard flight sim, uncomment the following line:
+            HandleInputs();
+            UpdateHUD();
+            if (_throttle > 0)
+            {
+                propeller.Rotate(Vector3.right * _throttle);
+            }
         }
     }
 
     private void FixedUpdate()
     {
-        rb.AddForce(transform.forward * (maxThrust * throttle));
-        rb.AddTorque(transform.up * (yaw * responseModifier));
-        rb.AddTorque(transform.right * (roll * responseModifier));
-        rb.AddTorque(-transform.forward * (pitch * responseModifier));
+        if (_calibrationFrame >= framesNeeded || !useSerial)
+        {
+            _rb.useGravity = true;
+            _rb.AddForce(transform.right * (maxThrust * _throttle));
+            _rb.AddTorque(transform.up * (_yaw * ResponseModifier));
+            _rb.AddTorque(-transform.right * (_roll * ResponseModifier));
+            _rb.AddTorque(transform.forward * (_pitch * ResponseModifier));
 
-        rb.AddForce(Vector3.up * (rb.velocity.magnitude * lift));
+            _rb.AddForce(Vector3.up * (_rb.velocity.magnitude * lift));
+        }
+
+        if (_calibrationFrame >= framesNeeded)
+        {
+            _rb.useGravity = false;
+        }
     }
 
     private void UpdateHUD()
     {
-        hud.text = "Throttle: " + throttle.ToString("F0") + "%\n";
-        hud.text += "Airspeed: " + (rb.velocity.magnitude * 3.6f).ToString("F0") + "km/h\n";
+        hud.text = "";
+        if (_calibrationFrame <= framesNeeded)
+        {
+            hud.text += "Calibrating joystick (Do not move it)";
+        }
+        hud.text = "Throttle: " + _throttle.ToString("F0") + "%\n";
+        hud.text += "Airspeed: " + (_rb.velocity.magnitude * 3.6f).ToString("F0") + "km/h\n";
         hud.text += "Altitude: " + transform.position.y.ToString("F0") + " m";
     }
 }
