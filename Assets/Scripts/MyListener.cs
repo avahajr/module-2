@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using UnityEngine.Serialization;
 
 
 public class MyListener : MonoBehaviour
@@ -18,8 +19,8 @@ public class MyListener : MonoBehaviour
     private float _yaw;
 
 
-    [SerializeField] private float _pitchCorrection = 0;
-    [SerializeField] private float _rollCorrection = 0;
+    [FormerlySerializedAs("_pitchCorrection")] [SerializeField] private float pitchCorrection = 0;
+    [FormerlySerializedAs("_rollCorrection")] [SerializeField] private float rollCorrection = 0;
     private int _calibrationFrame = 0;
     [SerializeField] private int framesNeeded = 10;
 
@@ -41,9 +42,8 @@ public class MyListener : MonoBehaviour
         _rb = GetComponent<Rigidbody>();
     }
 
-    private void HandleInputs()
+    private void HandleNonSerialInputs()
     {
-        // TODO: change later!
         if (!useSerial)
         {
             _roll = Input.GetAxis("Roll");
@@ -77,22 +77,21 @@ public class MyListener : MonoBehaviour
             {
                 serialIntegers[i] = int.Parse(slicedMessage[i]);
             }
-
-            // Debug.Log("X: " + serialIntegers[0] + " " + "Y: " + serialIntegers[1] + " " + "Z: " + serialIntegers[2] +
-            //           " " +
-            //           "Potentiometer: " + serialIntegers[3]);
+            
             if (_calibrationFrame < framesNeeded)
             {
-                _pitchCorrection += (serialIntegers[1] / (4095f / 2f) - 1) * 1f / framesNeeded;
-                _rollCorrection += (serialIntegers[0] / (4095f / 2f) - 1) * 1f / framesNeeded;
+
+                hud.text = "Calibrating joystick..." + ((_calibrationFrame * 1f / framesNeeded) * 100f).ToString("F00") + "%";
+                pitchCorrection += (serialIntegers[1] / (4095f / 2f) - 1) * 1f / framesNeeded;
+                rollCorrection += (serialIntegers[0] / (4095f / 2f) - 1) * 1f / framesNeeded;
 
                 _calibrationFrame++;
             }
             else
             {
                 _yaw = serialIntegers[3] / (4095f / 2f) - 1;
-                _pitch = serialIntegers[1] / (4095f / 2f) - 1 - _pitchCorrection;
-                _roll = serialIntegers[0] / (4095f / 2f) - 1 - _rollCorrection;
+                _pitch = serialIntegers[1] / (4095f / 2f) - 1 - pitchCorrection;
+                _roll = serialIntegers[0] / (4095f / 2f) - 1 - rollCorrection;
 
                 // ignore extremely small values -- they are most likely unintentional
                 if (Math.Abs(_pitch) < joystickDeadzone)
@@ -119,7 +118,7 @@ public class MyListener : MonoBehaviour
         if (_calibrationFrame >= framesNeeded || !useSerial)
         {
             // for a keyboard flight sim, uncomment the following line:
-            HandleInputs();
+            HandleNonSerialInputs();
             UpdateHUD();
             if (_throttle > 0)
             {
@@ -141,7 +140,7 @@ public class MyListener : MonoBehaviour
             _rb.AddForce(Vector3.up * (_rb.velocity.magnitude * lift));
         }
 
-        if (_calibrationFrame >= framesNeeded)
+        if (_calibrationFrame < framesNeeded)
         {
             _rb.useGravity = false;
         }
@@ -150,11 +149,7 @@ public class MyListener : MonoBehaviour
     private void UpdateHUD()
     {
         hud.text = "";
-        if (_calibrationFrame <= framesNeeded)
-        {
-            hud.text += "Calibrating joystick (Do not move it)";
-        }
-        hud.text = "Throttle: " + _throttle.ToString("F0") + "%\n";
+        hud.text += "Throttle: " + _throttle.ToString("F0") + "%\n";
         hud.text += "Airspeed: " + (_rb.velocity.magnitude * 3.6f).ToString("F0") + "km/h\n";
         hud.text += "Altitude: " + transform.position.y.ToString("F0") + " m";
     }
