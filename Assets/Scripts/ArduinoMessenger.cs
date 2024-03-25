@@ -10,10 +10,11 @@ public class ArduinoMessenger : MonoBehaviour
 
     private MyListener _throttleHaver;
     private Rigidbody _rb;
-    private int _currentFrame = 0;
+    private int _currentFrame;
     private char _lightState;
-    private bool _isCloseToCrashing = false;
+    private bool _isCloseToCrashing;
     
+    // to not overwhelm the ESP32's serial queue, only transmit a message every framesPerMessage frames
     [SerializeField] private int framesPerMessage = 60;
 
     // Start is called before the first frame update
@@ -22,6 +23,7 @@ public class ArduinoMessenger : MonoBehaviour
         _serialController = this.GetComponent<SerialController>();
         _throttleHaver = this.GetComponent<MyListener>();
         _rb = this.GetComponent<Rigidbody>();
+        _serialController.SetTearDownFunction(Teardown);
     }
 
     void FixedUpdate()
@@ -43,7 +45,7 @@ public class ArduinoMessenger : MonoBehaviour
         if (!_isCloseToCrashing)
         {
             _serialController.SendSerialMessage(
-                $"{_lightState}\r{_throttleHaver.GetThrottle():F0}\r{transform.position.y:F0}\r{(_rb.velocity.magnitude * 3.6f):F0}");
+                $" \r{_lightState}\r{_throttleHaver.GetThrottle():F0}\r{transform.position.y:F0}\r{(_rb.velocity.magnitude * 3.6f):F0}");
         }
         _currentFrame = 0;
     }
@@ -54,11 +56,17 @@ public class ArduinoMessenger : MonoBehaviour
         _isCloseToCrashing = true;
         // fast-track the serial message
         _serialController.SendSerialMessage(
-            $"R\r{_throttleHaver.GetThrottle():F0}\r{transform.position.y:F0}\r{(_rb.velocity.magnitude * 3.6f):F0}");
+            $" \rR\r{_throttleHaver.GetThrottle():F0}\r{transform.position.y:F0}\r{(_rb.velocity.magnitude * 3.6f):F0}");
     }
 
     private void OnTriggerExit(Collider other)
     {
         _isCloseToCrashing = false;
     }
+    private void Teardown()
+    {
+        _serialController.SendSerialMessage(
+            $"X\r{_lightState}\r{_throttleHaver.GetThrottle():F0}\r{transform.position.y:F0}\r{(_rb.velocity.magnitude * 3.6f):F0}");   
+    }
 }
+

@@ -13,14 +13,19 @@ public class MyListener : MonoBehaviour
     public float responsiveness = 10f;
     public float lift = 135f;
 
+    private bool _throttleDown;
     private float _throttle;
     private float _roll;
     private float _pitch;
     private float _yaw;
 
 
-    [FormerlySerializedAs("_pitchCorrection")] [SerializeField] private float pitchCorrection = 0;
-    [FormerlySerializedAs("_rollCorrection")] [SerializeField] private float rollCorrection = 0;
+    [FormerlySerializedAs("_pitchCorrection")] [SerializeField]
+    private float pitchCorrection = 0;
+
+    [FormerlySerializedAs("_rollCorrection")] [SerializeField]
+    private float rollCorrection = 0;
+
     private int _calibrationFrame = 0;
     [SerializeField] private int framesNeeded = 10;
 
@@ -40,6 +45,7 @@ public class MyListener : MonoBehaviour
     {
         return _throttle;
     }
+
     // Start is called before the first frame update
     private void Awake()
     {
@@ -53,17 +59,8 @@ public class MyListener : MonoBehaviour
             _roll = Input.GetAxis("Roll");
             _pitch = Input.GetAxis("Pitch");
             _yaw = Input.GetAxis("Yaw");
+            _throttleDown = Input.GetKey(KeyCode.Space);
         }
-        if (Input.GetKey(KeyCode.Space))
-        {
-            _throttle += throttleIncrement;
-        }
-        else
-        {
-            _throttle -= throttleIncrement;
-        }
-
-        _throttle = Mathf.Clamp(_throttle, 0f, 100f);
     }
 
     void OnMessageArrived(string msg)
@@ -81,11 +78,11 @@ public class MyListener : MonoBehaviour
             {
                 serialIntegers[i] = int.Parse(slicedMessage[i]);
             }
-            
+
             if (_calibrationFrame < framesNeeded)
             {
-
-                hud.text = "Calibrating joystick..." + ((_calibrationFrame * 1f / framesNeeded) * 100f).ToString("F00") + "%";
+                hud.text = "Calibrating joystick..." +
+                           ((_calibrationFrame * 1f / framesNeeded) * 100f).ToString("F00") + "%";
                 pitchCorrection += (serialIntegers[1] / (4095f / 2f) - 1) * 1f / framesNeeded;
                 rollCorrection += (serialIntegers[0] / (4095f / 2f) - 1) * 1f / framesNeeded;
 
@@ -96,7 +93,7 @@ public class MyListener : MonoBehaviour
                 _yaw = serialIntegers[3] / (4095f / 2f) - 1;
                 _pitch = serialIntegers[1] / (4095f / 2f) - 1 - pitchCorrection;
                 _roll = serialIntegers[0] / (4095f / 2f) - 1 - rollCorrection;
-
+                _throttleDown = serialIntegers[2] != 1;
                 // ignore extremely small values -- they are most likely unintentional
                 if (Math.Abs(_pitch) < joystickDeadzone)
                     _pitch = 0f;
@@ -111,7 +108,7 @@ public class MyListener : MonoBehaviour
     }
 
     void OnConnectionEvent(bool success)
-    { 
+    {
         if (useSerial)
             Debug.Log(success ? "Device connected!" : "Device DISCONNECTED.");
     }
@@ -121,8 +118,10 @@ public class MyListener : MonoBehaviour
     {
         if (_calibrationFrame >= framesNeeded || !useSerial)
         {
-            // for a keyboard flight sim, uncomment the following line:
             HandleNonSerialInputs();
+            _throttle = UpdateThrottle();
+            _throttle = Mathf.Clamp(_throttle, 0f, 100f);
+            
             UpdateHUD();
             if (_throttle > 0)
             {
@@ -156,5 +155,15 @@ public class MyListener : MonoBehaviour
         hud.text += "Throttle: " + _throttle.ToString("F0") + "%\n";
         hud.text += "Airspeed: " + (_rb.velocity.magnitude * 3.6f).ToString("F0") + "km/h\n";
         hud.text += "Altitude: " + transform.position.y.ToString("F0") + " m";
+    }
+
+    float UpdateThrottle()
+    {
+        if (_throttleDown)
+        {
+            return _throttle + throttleIncrement;
+        }
+
+        return _throttle - throttleIncrement;
     }
 }
