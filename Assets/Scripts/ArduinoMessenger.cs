@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 public class ArduinoMessenger : MonoBehaviour
@@ -8,7 +10,10 @@ public class ArduinoMessenger : MonoBehaviour
 
     private MyListener _throttleHaver;
     private Rigidbody _rb;
-    private int currentFrame = 0;
+    private int _currentFrame = 0;
+    private char _lightState;
+    private bool _isCloseToCrashing = false;
+    
     [SerializeField] private int framesPerMessage = 60;
 
     // Start is called before the first frame update
@@ -19,31 +24,41 @@ public class ArduinoMessenger : MonoBehaviour
         _rb = this.GetComponent<Rigidbody>();
     }
 
-    // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
-        if (currentFrame != framesPerMessage) { 
+        if (_currentFrame != framesPerMessage) { 
             // skip this frame's values
-            currentFrame++;
+            _currentFrame++;
             return;        
         }
-        var dotProd = Vector3.Dot(Vector3.up, transform.TransformVector(Vector3.up));
-        if (dotProd < 0f)
-        {
-            // if the plane is upside down, then we should flash the lights
-            Debug.Log(
-                $"1 {_throttleHaver.GetThrottle():F0} {transform.position.y:F0} {(_rb.velocity.magnitude * 3.6f):F0}\n");
-            _serialController.SendSerialMessage(
-                $"1\r{_throttleHaver.GetThrottle():F0}\r{transform.position.y:F0}\r{(_rb.velocity.magnitude * 3.6f):F0}");
-        }
-        else
-        {
-            Debug.Log(
-                $"0\r{_throttleHaver.GetThrottle():F0}\r{transform.position.y:F0}\r{(_rb.velocity.magnitude * 3.6f):F0}");
-            _serialController.SendSerialMessage(
-                $"0\r{_throttleHaver.GetThrottle():F0}\r{transform.position.y:F0}\r{(_rb.velocity.magnitude * 3.6f):F0}");
-        }
 
-        currentFrame = 0;
+        _lightState = transform.position.y switch
+        {
+            // altitude-based lights
+            > 200 when !_isCloseToCrashing => 'G',
+            <= 200 when !_isCloseToCrashing => 'Y',
+            _ => _lightState
+        };
+
+        if (!_isCloseToCrashing)
+        {
+            _serialController.SendSerialMessage(
+                $"{_lightState}\r{_throttleHaver.GetThrottle():F0}\r{transform.position.y:F0}\r{(_rb.velocity.magnitude * 3.6f):F0}");
+        }
+        _currentFrame = 0;
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        Debug.Log("R");
+        _isCloseToCrashing = true;
+        // fast-track the serial message
+        _serialController.SendSerialMessage(
+            $"R\r{_throttleHaver.GetThrottle():F0}\r{transform.position.y:F0}\r{(_rb.velocity.magnitude * 3.6f):F0}");
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        _isCloseToCrashing = false;
     }
 }

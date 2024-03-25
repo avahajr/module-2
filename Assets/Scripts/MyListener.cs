@@ -144,7 +144,7 @@ public class MyListener : MonoBehaviour
             _rb.AddForce(Vector3.up * (_rb.velocity.magnitude * lift));
         }
 
-        if (_calibrationFrame < framesNeeded)
+        else
         {
             _rb.useGravity = false;
         }

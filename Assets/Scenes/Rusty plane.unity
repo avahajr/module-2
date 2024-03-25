@@ -2011,7 +2011,7 @@ MonoBehaviour:
   pitchCorrection: 0
   rollCorrection: 0
   framesNeeded: 10
-  useSerial: 1
+  useSerial: 0
   joystickDeadzone: 0.05
   yawDeadzone: 0.03
   hud: {fileID: 1092766842}
@@ -2044,7 +2044,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 660244400}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8bc5f48af2cffd747a079fe8c632e2c8, type: 3}
   m_Name: 
@@ -2061,7 +2061,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 660244400}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d32ca7da7d0f1475884eebbe0250aa99, type: 3}
   m_Name: 
