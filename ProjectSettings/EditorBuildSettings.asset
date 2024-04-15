@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/FlightSim.unity
+    guid: 3a059e1218b8597498263f2a2b4a7fe8
   m_configObjects: {}
